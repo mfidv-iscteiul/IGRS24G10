@@ -32,7 +32,7 @@ class kamailio:
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
                 return 1
             
-            KSR.registrar.save('location', 0)
+            KSR.registrar.save('location', 0) #o 0 faz com o que save tenha o commportamento padrao 
             return 1
 
         if (msg.Method == "INVITE"):                      
@@ -57,7 +57,8 @@ class kamailio:
 #                  KSR.rr.record_route()  # Add Record-Route header
                     KSR.tm.t_relay()
                 else:
-                    KSR.sl.send_reply(404, "Not found")
+                    KSR.info("O chamado nao se encontra registado!\n")
+                    KSR.sl.send_reply(480, "Chamado temporariamente indisponivel") #codigo 480 temporariamennte indisponivel
             else:
 #               KSR.rr.record_route()
                 KSR.tm.t_relay()
