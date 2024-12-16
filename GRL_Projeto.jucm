@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<urn:URNspec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:grl="http:///grl.ecore" xmlns:urn="http:///urn.ecore" name="URNspec" author="igrs" created="November 26, 2024 at 3:44:14 PM WET" modified="November 26, 2024 at 4:54:31 PM WET" specVersion="3" urnVersion="1.27" nextGlobalID="152">
+<urn:URNspec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:grl="http:///grl.ecore" xmlns:urn="http:///urn.ecore" name="URNspec" author="igrs" created="November 26, 2024 at 3:44:14 PM WET" modified="December 16, 2024 at 4:51:12 PM WET" specVersion="4" urnVersion="1.27" nextGlobalID="162">
   <ucmspec>
     <scenarioGroups name="ScenarioGroup5" id="5">
       <scenarios name="ScenarioDef6" id="6"/>
@@ -20,12 +20,13 @@
     <intElements name="Verificação através de código PIN" id="95" linksSrc="99" type="Task" refs="96"/>
     <intElements name="Utilizar o serviço através de multiplas plataformas" id="102" linksSrc="106" type="Goal" refs="103"/>
     <intElements name="Reencaminhar chamadas de acme.pt" id="110" linksDest="138 139 140 141 147" linksSrc="118" type="Goal" refs="111"/>
-    <intElements name="Monitorar o desempenho do serviço" id="114" type="Goal" refs="115"/>
+    <intElements name="Monitorar o desempenho do serviço" id="114" linksDest="161" type="Goal" refs="115"/>
     <intElements name="Não reencaminhar chamadas de !=acme.pt" id="120" linksSrc="138" type="Task" refs="121"/>
     <intElements name="Informar chamador caso chamado não esteja registado" id="124" linksSrc="139" type="Task" refs="125"/>
     <intElements name="Reencaminhar se chamado estiver registado e disponível" id="130" linksSrc="140" type="Task" refs="131"/>
     <intElements name="Reencaminhar para servidor de anúncios se o chamado estiver ocupado numa sessão" id="134" linksSrc="141" type="Task" refs="135"/>
     <intElements name="Reencaminhar para conferência do chamado se este estiver ocupado numa mesma e o chamador clicar no 0 enquanto se encontra no servidor de anúncios" id="143" linksSrc="147" type="Task" refs="144"/>
+    <intElements name="Utilizar o protocolo gNMI para realizar a monitorização" id="153" linksSrc="161" type="Task" refs="154"/>
     <actors name="Funcionário" id="13" contRefs="14"/>
     <actors name="Operador de Telecomunicações" id="17" contRefs="18"/>
     <actors name="Empresa" id="19" contRefs="20"/>
@@ -47,6 +48,7 @@
     <links xsi:type="grl:Decomposition" name="Decomposition140" id="140" refs="//@urndef/@specDiagrams.0/@connections.15" dest="110" src="130"/>
     <links xsi:type="grl:Decomposition" name="Decomposition141" id="141" refs="//@urndef/@specDiagrams.0/@connections.16" dest="110" src="134"/>
     <links xsi:type="grl:Decomposition" name="Decomposition147" id="147" refs="//@urndef/@specDiagrams.0/@connections.17" dest="110" src="143"/>
+    <links xsi:type="grl:Decomposition" name="Decomposition161" id="161" refs="//@urndef/@specDiagrams.0/@connections.18" dest="114" src="153"/>
     <groups name="StrategiesGroup3" id="3" strategies="4"/>
     <strategies name="EvaluationStrategy4" id="4" author="igrs" group="3"/>
     <impactModel/>
@@ -114,7 +116,7 @@
         <metadata name="_height" value="67"/>
         <metadata name="_width" value="110"/>
       </nodes>
-      <nodes xsi:type="grl:IntentionalElementRef" name="IntentionalElementRef115" id="115" x="587" y="286" contRef="20" def="114">
+      <nodes xsi:type="grl:IntentionalElementRef" name="IntentionalElementRef115" id="115" x="566" y="197" contRef="20" pred="//@urndef/@specDiagrams.0/@connections.18" def="114">
         <metadata name="_height" value="65"/>
         <metadata name="_width" value="110"/>
       </nodes>
@@ -138,13 +140,17 @@
         <metadata name="_height" value="150"/>
         <metadata name="_width" value="161"/>
       </nodes>
+      <nodes xsi:type="grl:IntentionalElementRef" name="IntentionalElementRef154" id="154" x="583" y="317" contRef="20" succ="//@urndef/@specDiagrams.0/@connections.18" def="153">
+        <metadata name="_height" value="86"/>
+        <metadata name="_width" value="119"/>
+      </nodes>
       <contRefs xsi:type="grl:ActorRef" name="ActorRef14" id="14" x="751" y="59" width="717" height="700" contDef="13" nodes="24 28 34 48 103 111 121 125 131 135 144 38">
         <label deltaX="2" deltaY="9"/>
       </contRefs>
       <contRefs xsi:type="grl:ActorRef" name="ActorRef18" id="18" x="96" y="170" width="474" height="426" contDef="17" nodes="69">
         <label deltaX="13" deltaY="10"/>
       </contRefs>
-      <contRefs xsi:type="grl:ActorRef" name="ActorRef20" id="20" x="268" y="108" width="460" height="418" contDef="19" nodes="73 115 96 92 44 88">
+      <contRefs xsi:type="grl:ActorRef" name="ActorRef20" id="20" x="268" y="108" width="460" height="418" contDef="19" nodes="73 115 96 92 44 88 154">
         <label deltaX="-28" deltaY="14"/>
       </contRefs>
       <connections xsi:type="grl:LinkRef" source="24" target="28" link="55">
@@ -169,6 +175,7 @@
       <connections xsi:type="grl:LinkRef" source="131" target="111" link="140"/>
       <connections xsi:type="grl:LinkRef" source="135" target="111" link="141"/>
       <connections xsi:type="grl:LinkRef" source="144" target="111" link="147"/>
+      <connections xsi:type="grl:LinkRef" source="154" target="115" link="161"/>
     </specDiagrams>
   </urndef>
   <metadata name="_Use0to100EvaluationRange" value="false"/>
