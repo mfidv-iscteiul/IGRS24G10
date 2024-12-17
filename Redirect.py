@@ -27,6 +27,7 @@ class kamailio:
             KSR.info("REGISTER R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("            To: " + KSR.pv.get("$tu") +
                            " Contact:"+ KSR.hdr.get("Contact") +"\n")
+                
             if(KSR.pv.get("$fd") != "acme.pt" ):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
@@ -39,29 +40,41 @@ class kamailio:
             KSR.info("INVITE R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("        From: " + KSR.pv.get("$fu") +
                               " To:"+ KSR.pv.get("$tu") +"\n")
-            if(KSR.pv.get("$fd") != "acme.pt" ): #verificar se o dominio e acme.pt
+            
+            # Requisito 1 - Encaminhamento exclusivo para outros funcionários da ACME
+            if "acme.pt" not in KSR.pv.get("$fd"):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
-                return 1
+                return -1
             
-            if (KSR.pv.get("$td") == "acme.pt"):   # Check if To domain is a.pt   
-                if (KSR.pv.get("$tu") == "sip:announce@a.pt"):  # Special To-URI tratar de maneira especial vamos usar para a conferencia
-                    KSR.tm.t_on_reply("ksr_onreply_route_INVITE")
-                    KSR.tm.t_on_failure("ksr_failure_route_INVITE")                 
-                    KSR.pv.sets("$ru", "sip:announce@127.0.0.1:5090")
-                    KSR.forward()       # Forwarding using statless mode
-#                    KSR.tm.t_relay()    # Relaying using transaction mode
-                    return 1  
-                if (KSR.registrar.lookup("location") == 1):  # Check if registered
-                    KSR.info("  lookup changed R-URI: " + KSR.pv.get("$ru") +"\n")
-#                  KSR.rr.record_route()  # Add Record-Route header
-                    KSR.tm.t_relay()
-                else:
-                    KSR.info("O chamado nao se encontra registado!\n")
-                    KSR.sl.send_reply(480, "Chamado temporariamente indisponivel") #codigo 480 temporariamennte indisponivel
-            else:
-#               KSR.rr.record_route()
+            # Requisito 2 - Funcionário destino não registado
+            if KSR.registrar.lookup("location") != 1:
+                KSR.info("Destinatário não se encontra registado ou disponível!\n")
+                KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
+                return -1
+            
+            #Requisito 4 - Funcionário destino ocupado (não em conferência) 486 -> Busy Here
+            if KSR.pv.get("$rs") == "486":
+                KSR.info("Destino ocupado - A redirecionar para o servidor de anúncios!")
+                KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5080")
                 KSR.tm.t_relay()
+                return -1
+            
+            #Requisito 5 - Funcionário destino ocupado em conferência
+            if KSR.pv.get("$rs") == "486" and "conference" in KSR.pv.get("$du"):
+                KSR.info("Destino em conferência - A redirecionar para o servidor de anúncios!")
+                ksr.pv.sets("ru","sip:inconference@127.0.0.1:5080")
+                
+                if ksr.pv.get("$dtmf") == "0":
+                    ksr.pv.set("ru","sip:conferencia@127.0.0.1:5090")
+                    ksr.tm.t_relay()
+                    return -1
+                
+                ksr.tm.t_relay()
+                return -1
+            
+            # Requisito 3 - Funcionário destino registado e disponível
+            ksr.tm.t_relay()
             return 1
 
         if (msg.Method == "ACK"):
