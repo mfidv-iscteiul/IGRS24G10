@@ -23,6 +23,7 @@ class kamailio:
         return 0
     
     def ksr_request_route(self, msg):
+        KSR.info("Dom: "+KSR.pv.get("$fd")+"--")
         if  (msg.Method == "REGISTER"):
             KSR.info("REGISTER R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("            To: " + KSR.pv.get("$tu") +
@@ -40,14 +41,19 @@ class kamailio:
             KSR.info("INVITE R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("        From: " + KSR.pv.get("$fu") +
                      "        To:   " + KSR.pv.get("$tu") +"\n")
-            
+            # KSR.info(KSR.pv.get("$td")+ " - z - " + KSR.pv.get("$fd"))
+
             # Reencaminhamento para a sala de conferências ACME
             if KSR.pv.get("$ru") == "sip:conferencia@acme.pt" :
                 KSR.info("A ser reencaminhado para a sala de conferências!")
-        sud
+                KSR.pv.sets("$ru","sip:conferencia@127.0.0.1:5090")
+                KSR.tm.t_relay()
+                return 1
+            
+            
             
             # Requisito 1 - Encaminhamento exclusivo para outros funcionários da ACME
-            if "acme.pt" not in KSR.pv.get("$fd"):
+            if "acme.pt" not in KSR.pv.get("$td"):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
                 return -1
