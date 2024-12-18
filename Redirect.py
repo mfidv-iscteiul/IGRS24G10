@@ -31,7 +31,7 @@ class kamailio:
             if(KSR.pv.get("$fd") != "acme.pt" ):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
-                return 1
+                return -1
             
             KSR.registrar.save('location', 0) #o 0 faz com o que save tenha o commportamento padrao 
             return 1
@@ -39,7 +39,12 @@ class kamailio:
         if (msg.Method == "INVITE"):                      
             KSR.info("INVITE R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("        From: " + KSR.pv.get("$fu") +
-                              " To:"+ KSR.pv.get("$tu") +"\n")
+                     "        To:   " + KSR.pv.get("$tu") +"\n")
+            
+            # Reencaminhamento para a sala de conferências ACME
+            if KSR.pv.get("$ru") == "sip:conferencia@acme.pt" :
+                KSR.info("A ser reencaminhado para a sala de conferências!")
+        sud
             
             # Requisito 1 - Encaminhamento exclusivo para outros funcionários da ACME
             if "acme.pt" not in KSR.pv.get("$fd"):
@@ -58,24 +63,26 @@ class kamailio:
                 KSR.info("Destino ocupado - A redirecionar para o servidor de anúncios!")
                 KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5080")
                 KSR.tm.t_relay()
-                return -1
+                return 1
             
             #Requisito 5 - Funcionário destino ocupado em conferência
             if KSR.pv.get("$rs") == "486" and "conference" in KSR.pv.get("$du"):
                 KSR.info("Destino em conferência - A redirecionar para o servidor de anúncios!")
-                ksr.pv.sets("ru","sip:inconference@127.0.0.1:5080")
+                KSR.pv.sets("ru","sip:inconference@127.0.0.1:5080")
                 
-                if ksr.pv.get("$dtmf") == "0":
-                    ksr.pv.set("ru","sip:conferencia@127.0.0.1:5090")
-                    ksr.tm.t_relay()
-                    return -1
+                if KSR.pv.get("$dtmf") == "0":
+                    KSR.pv.set("ru","sip:conferencia@127.0.0.1:5090")
+                    KSR.tm.t_relay()
+                    return 1
                 
-                ksr.tm.t_relay()
-                return -1
+                KSR.tm.t_relay()
+                return 1
             
             # Requisito 3 - Funcionário destino registado e disponível
-            ksr.tm.t_relay()
+            KSR.tm.t_relay()
             return 1
+        
+        
 
         if (msg.Method == "ACK"):
             KSR.info("ACK R-URI: " + KSR.pv.get("$ru") + "\n")
