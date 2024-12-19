@@ -75,21 +75,21 @@ class kamailio:
                 return -1
             
             
-            
-            
-            # Requisito 5 - Funcionário destino ocupado (não em conferência) 486 -> Busy Here
+            # Requisito 5 - Funcionário destino ocupado (não em conferência) 
             if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied":
                 KSR.info("Destino ocupado - A redirecionar para o servidor de anúncios!")
-                self.userStatus[KSR.pv.get("$fu")] = "Occupied" # DUVIDA - Aqui fica occupied?
+                self.userStatus[KSR.pv.get("$fu")] = "Occupied" 
                 KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5070")
                 KSR.tm.t_relay()
                 return 1
             
-            # Requisito 5 - Funcionário destino em conferência
+            # Requisito 6 - Funcionário destino em conferência
             if self.userStatus[(KSR.pv.get("$tu"))] == "inConference":
                 KSR.info("Destino em conferência - A redirecionar para o servidor de anúncios!")
-                self.userStatus[KSR.pv.get("$fu")] = "Occupied" # DUVIDA - Aqui fica occupied?
+                self.userStatus[KSR.pv.get("$fu")] = "Occupied" 
                 KSR.pv.sets("ru","sip:inconference@127.0.0.1:5080")
+                
+
 
                 if KSR.pv.get("$dtmf") == "0":
                     self.userStatus[KSR.pv.get("$fu")] = "inConference"
