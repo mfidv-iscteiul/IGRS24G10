@@ -55,9 +55,9 @@ class kamailio:
                 return -1
             
             # Requisito 2 - Encaminhamento exclusivo para outros funcionários da ACME
-            if "acme.pt" not in KSR.pv.get("$td"):
+            if (KSR.pv.get("$td") != "acme.pt" ):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
-                KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
+                KSR.sl.send_reply(403, "Proibido - Dominio de destino Invalido")
                 return -1
             
             # Requisito 3 - Reencaminhamento para a sala de conferências ACME
