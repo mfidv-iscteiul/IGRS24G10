@@ -76,7 +76,7 @@ class kamailio:
             
             
             # Requisito 5 - Funcionário destino ocupado (não em conferência) 
-            if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied":
+            if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied" :  #or self.userStatus[(KSR.pv.get("$u"))] == "Occupied"
                 KSR.info("Destino ocupado - A redirecionar para o servidor de anúncios!")
                 self.userStatus[KSR.pv.get("$fu")] = "Occupied" 
                 KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5070")
@@ -121,8 +121,11 @@ class kamailio:
             return 1
 
         if (msg.Method == "BYE"):
+            KSR.info("Status before BYE - From: %s, To: %s\n" % (self.userStatus.get(KSR.pv.get("$fu")), self.userStatus.get(KSR.pv.get("$tu")))) 
+            
             self.userStatus[KSR.pv.get("$fu")] = "Available"
             self.userStatus[KSR.pv.get("$tu")] = "Available"
+            KSR.info("Status after BYE - From: %s, To: %s\n" % (self.userStatus.get(KSR.pv.get("$fu")), self.userStatus.get(KSR.pv.get("$tu"))))
             KSR.info("BYE R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.registrar.lookup("location")
             KSR.rr.loose_route()
