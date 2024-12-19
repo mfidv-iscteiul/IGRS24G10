@@ -27,7 +27,7 @@ class kamailio:
         return 0
     
     def ksr_request_route(self, msg):
-        KSR.info("Dom: "+KSR.pv.get("$fd")+"--")
+        KSR.info("Dom: " +KSR.pv.get("$fd") + "--")
         if  (msg.Method == "REGISTER"):
             KSR.info("REGISTER R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("            To: " + KSR.pv.get("$tu") +
@@ -48,7 +48,19 @@ class kamailio:
                      "        To:   " + KSR.pv.get("$tu") +"\n")
             # KSR.info(KSR.pv.get("$td")+ " - z - " + KSR.pv.get("$fd"))
 
-            # Reencaminhamento para a sala de conferências ACME
+            # Requesito 1 - Pedido negado se vier se um dominio fora de acme.pt
+            if(KSR.pv.get("$fd") != "acme.pt" ):
+                KSR.info("Acesso negado- Fora do dominio acme.pt \n")
+                KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
+                return -1
+            
+            # Requisito 2 - Encaminhamento exclusivo para outros funcionários da ACME
+            if "acme.pt" not in KSR.pv.get("$td"):
+                KSR.info("Acesso negado- Fora do dominio acme.pt \n")
+                KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
+                return -1
+            
+            # Requisito 3 - Reencaminhamento para a sala de conferências ACME
             if KSR.pv.get("$ru") == "sip:conferencia@acme.pt" :
                 KSR.info("A ser reencaminhado para a sala de conferências!")
                 self.userStatus[KSR.pv.get("$fu")] = "inConference"
@@ -56,29 +68,24 @@ class kamailio:
                 KSR.tm.t_relay()
                 return 1
             
-            
-            
-            # Requisito 1 - Encaminhamento exclusivo para outros funcionários da ACME
-            if "acme.pt" not in KSR.pv.get("$td"):
-                KSR.info("Acesso negado- Fora do dominio acme.pt \n")
-                KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
-                return -1
-            
-            # Requisito 2 - Funcionário destino não registado
+            # Requisito 4 - Funcionário destino não registado
             if KSR.registrar.lookup("location") != 1:
                 KSR.info("Destinatário não se encontra registado ou disponível!\n")
                 KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
                 return -1
             
-            # Requisito 4 - Funcionário destino ocupado (não em conferência) 486 -> Busy Here
+            
+            
+            
+            # Requisito 5 - Funcionário destino ocupado (não em conferência) 486 -> Busy Here
             if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied":
                 KSR.info("Destino ocupado - A redirecionar para o servidor de anúncios!")
                 self.userStatus[KSR.pv.get("$fu")] = "Occupied" # DUVIDA - Aqui fica occupied?
-                KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5080")
+                KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5070")
                 KSR.tm.t_relay()
                 return 1
             
-            # Requisito 5 - FUncionário destino em conferência
+            # Requisito 5 - Funcionário destino em conferência
             if self.userStatus[(KSR.pv.get("$tu"))] == "inConference":
                 KSR.info("Destino em conferência - A redirecionar para o servidor de anúncios!")
                 self.userStatus[KSR.pv.get("$fu")] = "Occupied" # DUVIDA - Aqui fica occupied?
