@@ -1,7 +1,7 @@
 # IGRS24G10
 A representação dos diferentes atores, objectivos, tarefas e recursos e relações entre estes elementos resultou no seguinte **GRL**:
 
-![GRL](GRL.png "GRL")
+![GRL](GRL/GRL.png "GRL")
 
 A partir deste foi elaborado o seguinte **Product Backlog**:
 
