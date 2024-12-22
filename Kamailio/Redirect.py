@@ -77,6 +77,15 @@ class kamailio:
                 KSR.tm.t_relay()
                 return 1
             
+            # re-INVITE do servidor de anuncios
+            if KSR.pv.get("$fu") == "sip:inconference@acme.pt":
+                KSR.registrar.lookup("location")
+                KSR.info("re-INVITE enviado para " + KSR.pv.get("$tu") + "\n")
+                
+                KSR.rr.record_route()
+                KSR.tm.t_relay()
+                return 1
+            
             #Verificacoes para garantir que os nao registados nao fazem chamadas
             if KSR.pv.get("$fu") not in self.userStatus:
                 KSR.info("Chamador não se encontra registado! \n")
@@ -166,6 +175,38 @@ class kamailio:
                         
                         self.userStatus[(KSR.pv.get("$fu"))] = "Available"
                         KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Available \n")
+                        """
+                        KSR.pv.sets("$uac_req(method)", "INVITE")
+                        KSR.pv.sets("$uac_req(ruri)", str(KSR.pv.get("$fu")))
+                        #KSR.pv.sets("$uac_req(hdrs)", "To: <" + str(KSR.pv.get("$fu")) + ">;tag=" + str(KSR.pv.get("$tt")))
+                        KSR.pv.sets("$uac_req(turi)", str(KSR.pv.get("$fu")))
+                        KSR.pv.sets("$uac_req(furi)", "sip:inconference@acme.pt")
+                        KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
+                        hdr = "Contact: <sip:inconference@acme.pt>\r\nContent-Type: application/sdp"
+                        KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
+                        body = "v=0\r\no=inconference 1403101744 1793727227 IN IP4 127.0.0.1\r\ns=-\r\nc=IN IP4 127.0.0.1\r\nt=0 0\r\nm=audio 8888 RTP/AVP 98 97 8 0 3\r\na=rtpmap:98 speex/16000\r\na=rtpmap:97 speex/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:3 GSM/8000\r\na=ptime:20\r\na=sendonly"
+                        KSR.pv.sets("$uac_req(body)", body)
+                        KSR.uac.uac_req_send()
+                        
+                        KSR.pv.sets("$uac_req(method)", "INVITE")
+                        KSR.pv.sets("$uac_req(ruri)", "sip:conferencia@acme.pt")
+                        #KSR.pv.sets("$uac_req(hdrs)", "To: <sip:conferencia@acme.pt>;tag=" + str(KSR.pv.get("$tt")))
+                        KSR.pv.sets("$uac_req(turi)", "sip:conferencia@acme.pt")
+                        KSR.pv.sets("$uac_req(furi)", "sip:inconference@acme.pt")
+                        KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
+                        hdr = "Contact: <sip:inconference@acme.pt>"
+                        KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
+                        KSR.uac.uac_req_send()
+                        
+                        KSR.pv.sets("$uac_req(method)", "REFER")
+                        KSR.pv.sets("$uac_req(ruri)", KSR.pv.get("$fu"))
+                        KSR.pv.sets("$uac_req(turi)", KSR.pv.get("$fu"))
+                        KSR.pv.sets("$uac_req(furi)", "sip:inconference@acme.pt")
+                        KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
+                        # Adicionar o cabeçalho Contact
+                        KSR.pv.sets("$uac_req(hdrs)", "Contact: <sip:inconference@acme.pt>\r\nRefer-To: <sip:conferencia@acme.pt>\r\nReferred-By: <sip:inconference@acme.pt>")  # Cabeçalho Contact explícito
+                        KSR.uac.uac_req_send()
+                        """
                         
                         KSR.pv.sets("$uac_req(method)", "INVITE")
                         KSR.pv.sets("$uac_req(ruri)", KSR.pv.get("$fu"))
@@ -173,11 +214,10 @@ class kamailio:
                         KSR.pv.sets("$uac_req(furi)", "sip:conferencia@acme.pt")
                         KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
                         # Adicionar o cabeçalho Contact
-                        contact_value = "<sip:%s>" % KSR.pv.get("$fu")  # Definir como o próprio endereço de origem
-                        hdr = "Contact: " + contact_value + "\r\n"
-                        KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
+                        KSR.pv.sets("$uac_req(hdrs)", "Contact: <sip:conferencia@acme.pt>")  # Cabeçalho Contact explícito
                         KSR.uac.uac_req_send()
-
+                        
+                        
                         return 1
                     else:
                         KSR.info("INFO repetido ignorado \n")
@@ -204,7 +244,8 @@ class kamailio:
         if (msg.Method == "BYE"):
             KSR.info("BYE R-URI: " + KSR.pv.get("$ru") + "\n")
 
-            if KSR.pv.get("$tu") == "sip:conferencia@acme.pt":
+            if KSR.pv.get("$ru") == "sip:conferencia@acme.pt":
+                KSR.pv.sets("$ru","sip:conferencia@127.0.0.1:5090")
                 KSR.pv.sets("$tu","sip:conferencia@127.0.0.1:5090")
             
             self.userStatus[KSR.pv.get("$fu")] = "Available"
@@ -248,6 +289,11 @@ class kamailio:
             
             KSR.tm.t_relay()
             return -1
+        
+        if reply_code == 180 and KSR.pv.get("$fu") == "sip:conferencia@acme.pt":
+            KSR.info("Ganda treta \n")
+            KSR.sl.send_reply(180, "Ringing")
+            #KSR.pv.sets("$fu","sip:conferencia@127.0.0.1:5090")
         
         if reply_code == 200 and KSR.pv.get("$fu") == "sip:conferencia@acme.pt" and self.infoProcessed.get(KSR.pv.get("$tu")) == True:
             self.infoProcessed[KSR.pv.get("$tu")] = False
