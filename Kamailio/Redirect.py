@@ -30,12 +30,21 @@ class kamailio:
         if  (msg.Method == "REGISTER"):
             KSR.info("REGISTER R-URI: " + KSR.pv.get("$ru") + "\n")
             KSR.info("To: " + KSR.pv.get("$tu") + " Contact: " + KSR.hdr.get("Contact") +"\n")
+            expires= KSR.hdr.get("Contact").split("expires=")
+            expires_value=int(expires[1])
+            KSR.info("tempo de validade: " + str(expires_value) +"\n")
                 
             if(KSR.pv.get("$fd") != "acme.pt" ):
                 KSR.info("Acesso negado- Fora do dominio acme.pt \n")
                 KSR.sl.send_reply(403, "Proibido - Dominio Invalido")
                 return -1
             
+            if(expires_value==0):
+                del self.userStatus[KSR.pv.get("$fu")]
+                KSR.registrar.save("location", 0)
+                KSR.info("Utilizador concluiu o deregisto \n")
+                return 1
+                
             self.userStatus[KSR.pv.get("$fu")] = "Available"
             KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Available \n")
             KSR.registrar.save('location', 0) #o 0 faz com o que save tenha o commportamento padrao 
@@ -58,6 +67,22 @@ class kamailio:
                 KSR.sl.send_reply(403, "Proibido - Dominio de destino Invalido")
                 return -1
             
+            # INVITE do servidor de conferências
+            if KSR.pv.get("$fu") == "sip:conferencia@acme.pt":
+                KSR.registrar.lookup("location")
+                self.userStatus[KSR.pv.get("$tu")] = "Occupied"
+                KSR.info("Estado de " + KSR.pv.get("$tu") + " alterado para Occupied \n")
+                
+                KSR.rr.record_route()
+                KSR.tm.t_relay()
+                return 1
+            
+            #Verificacoes para garantir que os nao registados nao fazem chamadas
+            if KSR.pv.get("$fu") not in self.userStatus:
+                KSR.info("Chamador não se encontra registado! \n")
+                KSR.sl.send_reply(404, "Chamador não se encontra registado!")
+                return -1
+            
             # Requisito 3 - Reencaminhamento para a sala de conferências ACME
             if KSR.pv.get("$ru") == "sip:conferencia@acme.pt":
                 KSR.info("A ser reencaminhado para a sala de conferências! \n")
@@ -75,11 +100,6 @@ class kamailio:
                 KSR.info("Destinatário não se encontra registado ou disponível! \n")
                 KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
                 return -1
-            
-            #if KSR.registrar.registered("location", "$fu") != 1:
-            #    KSR.info("Destinatário não se encontra registado ou disponível! \n")
-            #    KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
-            #    return -1
             
             # Requisito 5 - Funcionário destino ocupado (não em conferência) 
             if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied" :  #or self.userStatus[(KSR.pv.get("$u"))] == "Occupied"
@@ -108,10 +128,9 @@ class kamailio:
                 
                 return 1
                 
-            #Chamada normal ou o INVITE do servidor de conferências
-            if not KSR.pv.get("$fu") == "sip:conferencia@acme.pt":
-                self.userStatus[KSR.pv.get("$fu")] = "Occupied"
-                KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
+            #Chamada normal
+            self.userStatus[KSR.pv.get("$fu")] = "Occupied"
+            KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
             self.userStatus[KSR.pv.get("$tu")] = "Occupied"
             KSR.info("Estado de " + KSR.pv.get("$tu") + " alterado para Occupied \n")
             
@@ -138,10 +157,10 @@ class kamailio:
                 KSR.info("DTMF recebido: " + dtmf_value + "\n")
                 # Verificar se a tecla pressionada é '0'
                 if dtmf_value.split()[0] == "Signal=0":
-                    if not (self.infoProcessed.get(KSR.pv.get("$fu")) == "True"):
+                    if not (self.infoProcessed.get(KSR.pv.get("$fu")) == True):
                         KSR.info("Tecla 0 pressionada - Redirecionando para a sala de conferências \n")
-                        self.infoProcessed[KSR.pv.get("$fu")] = "True"
-                        KSR.info("INFO processed: " + self.infoProcessed[KSR.pv.get("$fu")] + "\n")
+                        self.infoProcessed[KSR.pv.get("$fu")] = True
+                        KSR.info("INFO processed: " + str(self.infoProcessed[KSR.pv.get("$fu")]) + "\n")
                         
                         KSR.sl.send_reply(200,"OK")
                         
@@ -184,11 +203,7 @@ class kamailio:
 
         if (msg.Method == "BYE"):
             KSR.info("BYE R-URI: " + KSR.pv.get("$ru") + "\n")
-            
-            if self.infoProcessed.get(KSR.pv.get("$fu")) == True and KSR.pv.get("$tu") == "sip:conferencia@acme.pt":
-                self.infoProcessed[KSR.pv.get("$fu")] = False
-                KSR.info("INFO processed: " + self.infoProcessed[KSR.pv.get("$fu")] + "\n")
-            
+
             if KSR.pv.get("$tu") == "sip:conferencia@acme.pt":
                 KSR.pv.sets("$tu","sip:conferencia@127.0.0.1:5090")
             
@@ -234,7 +249,8 @@ class kamailio:
             KSR.tm.t_relay()
             return -1
         
-        if reply_code == 200 and KSR.pv.get("$fu") == "sip:conferencia@127.0.0.1:5090":
+        if reply_code == 200 and KSR.pv.get("$fu") == "sip:conferencia@acme.pt" and self.infoProcessed.get(KSR.pv.get("$tu")) == True:
+            self.infoProcessed[KSR.pv.get("$tu")] = False
             KSR.pv.sets("$uac_req(method)", "BYE")
             KSR.pv.sets("$uac_req(ruri)", "sip:127.0.0.1:5080")
             KSR.pv.sets("$uac_req(turi)", "sip:inconference@127.0.0.1:5080")
@@ -260,3 +276,5 @@ class kamailio:
     def ksr_failure_route_INVITE(self, msg):
         #KSR.info("===== INVITE failure route - from kamailio python script\n")
         return 1
+
+
