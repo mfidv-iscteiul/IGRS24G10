@@ -19,6 +19,7 @@ class kamailio:
     def __init__(self):
         KSR.info('===== kamailio.__init__\n')
         self.userStatus = {}
+        self.infoProcessed = {}
         
     def child_init(self, rank):
         #KSR.info('===== kamailio.child_init(%d)\n' % rank)
@@ -58,7 +59,7 @@ class kamailio:
                 return -1
             
             # Requisito 3 - Reencaminhamento para a sala de conferências ACME
-            if KSR.pv.get("$ru") == "sip:conferencia@acme.pt" :
+            if KSR.pv.get("$ru") == "sip:conferencia@acme.pt":
                 KSR.info("A ser reencaminhado para a sala de conferências! \n")
                 
                 self.userStatus[KSR.pv.get("$fu")] = "inConference"
@@ -75,6 +76,10 @@ class kamailio:
                 KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
                 return -1
             
+            #if KSR.registrar.registered("location", "$fu") != 1:
+            #    KSR.info("Destinatário não se encontra registado ou disponível! \n")
+            #    KSR.sl.send_reply(404, "Destinatário não se encontra registado ou disponível!")
+            #    return -1
             
             # Requisito 5 - Funcionário destino ocupado (não em conferência) 
             if self.userStatus[(KSR.pv.get("$tu"))] == "Occupied" :  #or self.userStatus[(KSR.pv.get("$u"))] == "Occupied"
@@ -83,6 +88,7 @@ class kamailio:
                 self.userStatus[KSR.pv.get("$fu")] = "Occupied"
                 KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
                 
+                KSR.pv.sets("$tu", "sip:busyann@127.0.0.1:5070")
                 KSR.pv.sets("$ru", "sip:busyann@127.0.0.1:5070")
                 KSR.rr.record_route()
                 KSR.tm.t_relay()
@@ -92,19 +98,22 @@ class kamailio:
             if self.userStatus[(KSR.pv.get("$tu"))] == "inConference":
                 KSR.info("Destino em conferência - A redirecionar para o servidor de anúncios! \n")
                 
-                #self.userStatus[KSR.pv.get("$fu")] = "Occupied"
-                #KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
+                self.userStatus[KSR.pv.get("$fu")] = "Occupied"
+                KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
                 
+                KSR.pv.sets("$tu","sip:inconference@127.0.0.1:5080")
                 KSR.pv.sets("$ru","sip:inconference@127.0.0.1:5080")
                 KSR.rr.record_route()
                 KSR.tm.t_relay()
                 
                 return 1
                 
-            #Chamada normal
-            self.userStatus[KSR.pv.get("$fu")] = "Occupied"
+            #Chamada normal ou o INVITE do servidor de conferências
+            if not KSR.pv.get("$fu") == "sip:conferencia@acme.pt":
+                self.userStatus[KSR.pv.get("$fu")] = "Occupied"
+                KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Occupied \n")
             self.userStatus[KSR.pv.get("$tu")] = "Occupied"
-            KSR.info("Estado de " + KSR.pv.get("$fu") + " e de " + KSR.pv.get("$tu") + " alterado para Occupied \n")
+            KSR.info("Estado de " + KSR.pv.get("$tu") + " alterado para Occupied \n")
             
             KSR.rr.record_route()
             KSR.tm.t_relay()
@@ -118,42 +127,53 @@ class kamailio:
             return 1
 
         if (msg.Method == "INFO"):
-            #Verificar se o ddestino está numa conferencia
-            if (self.userStatus[(KSR.pv.get("$tu"))] == "inConference"):
+            #Verificar se o destino está numa conferencia
+            if ((KSR.pv.get("$tu")) == "sip:inconference@127.0.0.1:5080"):
                 KSR.info("INFO recebido. Processando DTMF...\n")
                 
                 # Extrair o corpo da mensagem INFO
                 dtmf_value = KSR.pv.get("$rb")  # $rb contém o corpo da mensagem SIP
 
                 # Log para ver o valor recebido
-                print(dtmf_value.split())
                 KSR.info("DTMF recebido: " + dtmf_value + "\n")
                 # Verificar se a tecla pressionada é '0'
                 if dtmf_value.split()[0] == "Signal=0":
-                    KSR.info("Tecla 0 pressionada - Redirecionando para a sala de conferências \n")
-                    
-                    KSR.pv.sets("$uac_req(method)", "INVITE")
-                    KSR.pv.sets("$uac_req(ruri)", KSR.pv.get("$fu")) # Send to ender
-                    KSR.pv.sets("$uac_req(turi)", KSR.pv.get("$fu"))
-                    KSR.pv.sets("$uac_req(furi)", "sip:conferencia@acme.pt")
-                    KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Keep the Call-ID
-                    # Adicionar o cabeçalho Contact
-                    contact_value = "<sip:%s>" % KSR.pv.get("$fu")  # Definir como o próprio endereço de origem
-                    hdr = "Contact: " + contact_value + "\r\n"
-                    KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
-                    #hdr = "Content-Type: text/plain\r\n" # More headers can be added
-                    #KSR.pv.sets("$uac_req(hdrs)", hdr)
-                    KSR.uac.uac_req_send()
-                    
-                    return 1
+                    if not (self.infoProcessed.get(KSR.pv.get("$fu")) == "True"):
+                        KSR.info("Tecla 0 pressionada - Redirecionando para a sala de conferências \n")
+                        self.infoProcessed[KSR.pv.get("$fu")] = "True"
+                        KSR.info("INFO processed: " + self.infoProcessed[KSR.pv.get("$fu")] + "\n")
+                        
+                        KSR.sl.send_reply(200,"OK")
+                        
+                        self.userStatus[(KSR.pv.get("$fu"))] = "Available"
+                        KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Available \n")
+                        
+                        KSR.pv.sets("$uac_req(method)", "INVITE")
+                        KSR.pv.sets("$uac_req(ruri)", KSR.pv.get("$fu"))
+                        KSR.pv.sets("$uac_req(turi)", KSR.pv.get("$fu"))
+                        KSR.pv.sets("$uac_req(furi)", "sip:conferencia@acme.pt")
+                        KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
+                        # Adicionar o cabeçalho Contact
+                        contact_value = "<sip:%s>" % KSR.pv.get("$fu")  # Definir como o próprio endereço de origem
+                        hdr = "Contact: " + contact_value + "\r\n"
+                        KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
+                        KSR.uac.uac_req_send()
+
+                        return 1
+                    else:
+                        KSR.info("INFO repetido ignorado \n")
+                        KSR.sl.send_reply(200,"OK")
+                        return 1
                 
                 # Se não for a tecla esperada, apenas logar e não fazer nada
                 KSR.info("Tecla DTMF não corresponde à ação configurada.\n")
+                KSR.sl.send_reply(404,"Not found")
                 return -1
             
             else:
                 # Se a mensagem info não estiver a vir de um user no servidor de anuncios "inconference"
                 KSR.info("Serviço DTMF não configurado para servidores que não o inconference\n")
+                KSR.sl.send_reply(404,"Not found")
                 return -1
         
         if (msg.Method == "CANCEL"):
@@ -165,24 +185,20 @@ class kamailio:
         if (msg.Method == "BYE"):
             KSR.info("BYE R-URI: " + KSR.pv.get("$ru") + "\n")
             
+            if self.infoProcessed.get(KSR.pv.get("$fu")) == True and KSR.pv.get("$tu") == "sip:conferencia@acme.pt":
+                self.infoProcessed[KSR.pv.get("$fu")] = False
+                KSR.info("INFO processed: " + self.infoProcessed[KSR.pv.get("$fu")] + "\n")
+            
+            if KSR.pv.get("$tu") == "sip:conferencia@acme.pt":
+                KSR.pv.sets("$tu","sip:conferencia@127.0.0.1:5090")
+            
             self.userStatus[KSR.pv.get("$fu")] = "Available"
+            KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Available \n")
             self.userStatus[KSR.pv.get("$tu")] = "Available"
-            KSR.info("Estado de " + KSR.pv.get("$fu") + " e de " + KSR.pv.get("$tu") + " alterado para Available \n")
+            KSR.info("Estado de " + KSR.pv.get("$tu") + " alterado para Available \n")
             
             KSR.registrar.lookup("location")
             KSR.tm.t_relay()
-            # Additional behaviour for BYE - sending a MESSAGE Request
-            if (KSR.pv.get("$fd") == "a.pt"):
-                KSR.pv.sets("$uac_req(method)", "MESSAGE")
-                KSR.pv.sets("$uac_req(ruri)", KSR.pv.get("$fu")) # Send to ender
-                KSR.pv.sets("$uac_req(turi)", KSR.pv.get("$fu"))
-                KSR.pv.sets("$uac_req(furi)", "sip:kamailio@a.pt")
-                KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Keep the Call-ID
-                msg = "You have ended a call"
-                hdr = "Content-Type: text/plain\r\n" # More headers can be added
-                KSR.pv.sets("$uac_req(hdrs)", hdr)
-                KSR.pv.sets("$uac_req(body)", msg)
-                KSR.uac.uac_req_send()
             return 1
 
         if (msg.Method == "MESSAGE"):
@@ -211,12 +227,25 @@ class kamailio:
             KSR.info("Sessão rejeitada\n")
             
             self.userStatus[KSR.pv.get("$fu")] = "Available"
+            KSR.info("Estado de " + KSR.pv.get("$fu") + " alterado para Available \n")
             self.userStatus[KSR.pv.get("$tu")] = "Available"
-            KSR.info("Estado de " + KSR.pv.get("$fu") + " e de " + KSR.pv.get("$tu") + " alterado para Available \n")
+            KSR.info("Estado de " + KSR.pv.get("$tu") + " alterado para Available \n")
             
             KSR.tm.t_relay()
             return -1
         
+        if reply_code == 200 and KSR.pv.get("$fu") == "sip:conferencia@127.0.0.1:5090":
+            KSR.pv.sets("$uac_req(method)", "BYE")
+            KSR.pv.sets("$uac_req(ruri)", "sip:127.0.0.1:5080")
+            KSR.pv.sets("$uac_req(turi)", "sip:inconference@127.0.0.1:5080")
+            KSR.pv.sets("$uac_req(furi)", KSR.pv.get("$tu"))
+            KSR.pv.sets("$uac_req(callid)", KSR.pv.get("$ci")) # Mantem o Call-ID
+            # Adicionar o cabeçalho Contact
+            #hdr = "Contact: sip:inconference@127.0.0.1:5080\r\n"
+            #KSR.pv.sets("$uac_req(hdrs)", hdr)  # Cabeçalho Contact explícito
+            KSR.uac.uac_req_send()
+        
+        KSR.tm.t_relay()
         return 1
 
     def ksr_onsend_route(self, msg):
